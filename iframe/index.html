@@ -238,7 +238,6 @@
 			h.push('run(pdfjsLib);');
 			h.push('})();');
 			h.push('function run(pdfjsLib){');
-			h.push('var RE=/^[A-Z]{1,4}\\d+[A-Z]?$/;');
 			h.push('var pdfData=window.__pdfData;');
 			h.push('var pdfName=window.__pdfName||"PDF";');
 			h.push('document.getElementById("docTitle").textContent=pdfName;');
@@ -299,15 +298,14 @@
 			h.push('sp.style.fontSize=h2+"px";');
 			h.push('sp.style.fontFamily=item.fontName||"sans-serif";');
 			h.push('var tr=item.str.trim();');
-			h.push('if(RE.test(tr)){sp.classList.add("designator");sp.title="点击定位: "+tr;}');
+			h.push('sp.classList.add("designator");sp.title="点击定位: "+tr;');
 			h.push('sp.addEventListener("click",function(e){');
 			h.push('e.stopPropagation();var t=e.target.textContent.trim();');
-			h.push('if(RE.test(t)){');
 			h.push('console.log("[eext-pdf] clicked designator:",t);');
 			// popup -> postMessage -> iframe -> localStorage -> extension polls
 			h.push('if(window.opener){window.opener.postMessage({type:"locate-designator",designator:t},"*");}');
 			h.push('showToast("已发送位号: "+t);');
-			h.push('}});');
+			h.push('});');
 			h.push('tl.appendChild(sp);');
 			h.push('});');
 			h.push('inner.appendChild(wr);');

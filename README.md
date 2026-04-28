@@ -18,7 +18,9 @@
 
 ## 截图
 
-![alt text](images/PixPin_2026-04-28_16-29-48.gif)
+![](images/image.jpg)
+
+![alt text](images/gif.gif)
 
 ## 提示
 

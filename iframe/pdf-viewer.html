@@ -93,7 +93,6 @@
 		const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.mjs');
 		pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.mjs';
 
-		const DESIGNATOR_RE = /^[A-Z]{1,4}\d+[A-Z]?$/;
 		const channel = new BroadcastChannel('eext-pdf-pcb');
 
 		let pdfDoc = null;
@@ -174,14 +173,12 @@
 				span.style.fontFamily = item.fontName || 'sans-serif';
 
 				const trimmed = item.str.trim();
-				if (DESIGNATOR_RE.test(trimmed)) {
-					span.classList.add('designator');
-					span.title = '点击定位: ' + trimmed;
-					span.addEventListener('click', (e) => {
-						e.stopPropagation();
-						sendDesignator(trimmed);
-					});
-				}
+				span.classList.add('designator');
+				span.title = '点击定位: ' + trimmed;
+				span.addEventListener('click', (e) => {
+					e.stopPropagation();
+					sendDesignator(trimmed);
+				});
 				textLayer.appendChild(span);
 			}
 
