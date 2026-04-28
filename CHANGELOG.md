@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.0.1]
+
+### 修复
+- 修复 PDF 预览窗口无法渲染 PDF 的问题（worker 加载失败，改为主线程 fake worker 模式）
+- 修复 `doCrossProbeSelect` 返回空结果时仍显示"已定位"的错误提示
+- 修复重复点击预览按钮打开多个 popup 导致通信混乱的问题
+- 修复 `postMessage` 无来源校验的安全隐患
+- 修复 PDF 加载失败时无任何错误提示的问题
+- 修复拖拽非 PDF 文件时无反馈且边框颜色不恢复的问题
+- 修复 PDF 文本层定位计算不准确导致点击偏移的问题
+- 修复 PDF 未加载完成时点击缩放按钮导致报错的问题
+- 修复 `extension.json` 中 `displayName` 的错别字
+
+### 变更
+- `extension.json` 中菜单 id 加上插件名前缀（`schpdf-pcb-*`），避免全局冲突
+- `extension.json` 补充 keywords（Schematic、CrossProbe、Designator）
+- `extension.json` 完善 description 描述
+- 版本号升至 1.0.1
+
 ## [1.0.0] - 2025
 
 ### 新增
