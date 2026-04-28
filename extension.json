@@ -1,7 +1,7 @@
 {
 	"name": "eext-schematic-pdf-interaction",
 	"uuid": "26d40432fa5441658d7b0d7589677219",
-	"displayName": "原理图PDF交互还是",
+	"displayName": "原理图PDF交互",
 	"description": "在PCB中预览原理图PDF，点击位号定位PCB元件",
 	"version": "1.0.0",
 	"publisher": "EasyEDA",

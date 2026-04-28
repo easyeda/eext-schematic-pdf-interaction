@@ -1,27 +1,23 @@
-# 1.2.0
+# Changelog
 
-## 变更
+## [1.0.0] - 2025
 
-1. 使用纯 ESLint 的代码格式化方式
-2. 打包时额外进行压缩，可以获得更小的扩展包
+### 新增
+- PCB 编辑器菜单入口："Schematic PDF Interaction" → "Open Schematic PDF..."
+- IFrame 弹窗文件选择器，支持点击选择和拖拽 PDF 文件
+- 独立浏览器窗口 PDF 预览，支持缩放、翻页、Ctrl+滚轮缩放、书签/大纲导航
+- 点击 PDF 中的元件位号文本，PCB 自动交叉探测选中高亮对应封装
+- 三个用户选项：自动收起弹窗（默认开）、自动平移（默认开）、自动缩放定位（默认关）
+- 关闭预览窗口后自动恢复 IFrame 弹窗
+- 中英文多语言支持
+- pdf.js v3.11.174 本地内嵌，离线可用
 
-# 1.1.1
-
-## 变更
-
-1. 为了符合隐私政策，禁止在 extension.json、README.md、CHANGELOG.md、LICENSE 内添加电子邮箱地址作为联系方式
-
-# 1.1.0
-
-## 新增
-
-1. 新增扩展注册头部菜单的多语言翻译支持
-2. 新增更新日志（CHANGELOG.md）
-
-## 变更
-
-1. 替换已弃用的方法（SYS_Dialog.showInformationMessage）
-
-# 1.0.0
-
-初始版本
+### 使用的 EDA API
+- `sys_IFrame.openIFrame()` / `hideIFrame()` / `showIFrame()` — IFrame 弹窗管理
+- `sys_Message.showToastMessage()` — Toast 提示
+- `pcb_SelectControl.doCrossProbeSelect()` — 按位号交叉探测选中
+- `pcb_SelectControl.getAllSelectedPrimitives_PrimitiveId()` — 获取选中元件 ID
+- `pcb_Primitive.getPrimitivesBBox()` — 获取元件包围盒
+- `pcb_Document.navigateToCoordinates()` — 平移画布
+- `dmt_EditorControl.zoomToSelectedPrimitives()` — 缩放定位到选中元件
+- `sys_I18n.text()` — 多语言文本
