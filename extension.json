@@ -4,7 +4,7 @@
 	"displayName": "原理图PDF交互还是",
 	"description": "在PCB中预览原理图PDF，点击位号定位PCB元件",
 	"version": "1.0.0",
-	"publisher": "",
+	"publisher": "EasyEDA",
 	"engines": {
 		"eda": "^3.0.0"
 	},
