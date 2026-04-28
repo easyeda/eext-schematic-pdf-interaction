@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>PDF Viewer</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.mjs" type="module"></script>
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+		body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #404040; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+		/* Toolbar */
+		.toolbar {
+			display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+			background: #333; color: #fff; font-size: 13px; flex-shrink: 0; z-index: 10;
+		}
+		.toolbar button {
+			background: #555; color: #fff; border: none; border-radius: 4px;
+			padding: 4px 10px; cursor: pointer; font-size: 13px;
+		}
+		.toolbar button:hover { background: #666; }
+		.toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
+		.toolbar .page-info { min-width: 80px; text-align: center; }
+		.toolbar .spacer { flex: 1; }
+		.toolbar .title { font-weight: 600; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+		/* Main layout */
+		.main { display: flex; flex: 1; overflow: hidden; }
+
+		/* Outline sidebar */
+		.sidebar {
+			width: 220px; background: #2a2a2a; color: #ccc; overflow-y: auto;
+			border-right: 1px solid #555; flex-shrink: 0; font-size: 13px; display: none;
+		}
+		.sidebar.open { display: block; }
+		.sidebar-title { padding: 10px 12px; font-weight: 600; color: #fff; border-bottom: 1px solid #444; }
+		.outline-item {
+			padding: 6px 12px; cursor: pointer; border-bottom: 1px solid #333;
+			overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+		}
+		.outline-item:hover { background: #3a3a3a; }
+		.outline-item.level-1 { padding-left: 24px; }
+		.outline-item.level-2 { padding-left: 36px; }
+
+		/* PDF container */
+		.pdf-container { flex: 1; overflow: auto; padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+		.page-wrapper { position: relative; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+		.page-wrapper canvas { display: block; }
+		.text-layer {
+			position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+			overflow: hidden; opacity: 0.25; line-height: 1;
+		}
+		.text-layer span {
+			position: absolute; white-space: pre; color: transparent; cursor: text;
+		}
+		.text-layer span.designator { cursor: pointer; background: rgba(24,144,255,0.15); border-radius: 2px; }
+		.text-layer span.designator:hover { background: rgba(24,144,255,0.4); }
+
+		/* Toast */
+		.toast {
+			position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+			background: #1890ff; color: #fff; padding: 8px 20px; border-radius: 6px;
+			font-size: 14px; z-index: 100; opacity: 0; transition: opacity 0.3s;
+			pointer-events: none;
+		}
+		.toast.show { opacity: 1; }
+	</style>
+</head>
+<body>
+	<div class="toolbar">
+		<button id="toggleOutline" title="书签">☰</button>
+		<button id="prevPage">◀</button>
+		<span class="page-info"><span id="pageNum">0</span> / <span id="pageCount">0</span></span>
+		<button id="nextPage">▶</button>
+		<span class="spacer"></span>
+		<button id="zoomOut">−</button>
+		<span id="zoomLevel">100%</span>
+		<button id="zoomIn">+</button>
+		<button id="zoomFit">适合</button>
+		<span class="spacer"></span>
+		<span class="title" id="docTitle"></span>
+	</div>
+	<div class="main">
+		<div class="sidebar" id="sidebar">
+			<div class="sidebar-title">书签</div>
+			<div id="outlineList"></div>
+		</div>
+		<div class="pdf-container" id="pdfContainer"></div>
+	</div>
+	<div class="toast" id="toast"></div>
+
+	<script type="module">
+		const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.mjs');
+		pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.mjs';
+
+		const DESIGNATOR_RE = /^[A-Z]{1,4}\d+[A-Z]?$/;
+		const channel = new BroadcastChannel('eext-pdf-pcb');
+
+		let pdfDoc = null;
+		let currentScale = 1.0;
+		const container = document.getElementById('pdfContainer');
+		const pageNumEl = document.getElementById('pageNum');
+		const pageCountEl = document.getElementById('pageCount');
+		const zoomLevelEl = document.getElementById('zoomLevel');
+
+		channel.onmessage = (event) => {
+			const { type, data, name } = event.data || {};
+			if (type === 'pdf-data' && data) {
+				document.getElementById('docTitle').textContent = name || 'PDF';
+				document.title = name || 'PDF';
+				loadPdf(new Uint8Array(data));
+			}
+		};
+
+		channel.postMessage({ type: 'viewer-ready' });
+
+		async function loadPdf(pdfData) {
+			const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+			pdfDoc = await loadingTask.promise;
+			pageCountEl.textContent = pdfDoc.numPages;
+			currentScale = calcFitScale();
+			await renderAllPages();
+			loadOutline();
+		}
+
+		function calcFitScale() {
+			if (!pdfDoc) return 1;
+			return Math.min((container.clientWidth - 32) / 612, 2.0);
+		}
+
+		async function renderAllPages() {
+			container.innerHTML = '';
+			for (let i = 1; i <= pdfDoc.numPages; i++) {
+				await renderPage(i);
+			}
+			updatePageNum();
+			updateZoomDisplay();
+		}
+
+		async function renderPage(num) {
+			const page = await pdfDoc.getPage(num);
+			const viewport = page.getViewport({ scale: currentScale });
+
+			const wrapper = document.createElement('div');
+			wrapper.className = 'page-wrapper';
+			wrapper.dataset.page = num;
+			wrapper.style.width = viewport.width + 'px';
+			wrapper.style.height = viewport.height + 'px';
+
+			const canvas = document.createElement('canvas');
+			canvas.width = viewport.width * window.devicePixelRatio;
+			canvas.height = viewport.height * window.devicePixelRatio;
+			canvas.style.width = viewport.width + 'px';
+			canvas.style.height = viewport.height + 'px';
+			const ctx = canvas.getContext('2d');
+			ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+			wrapper.appendChild(canvas);
+
+			await page.render({ canvasContext: ctx, viewport }).promise;
+
+			const textContent = await page.getTextContent();
+			const textLayer = document.createElement('div');
+			textLayer.className = 'text-layer';
+			wrapper.appendChild(textLayer);
+
+			for (const item of textContent.items) {
+				if (!item.str || !item.str.trim()) continue;
+				const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+				const span = document.createElement('span');
+				span.textContent = item.str;
+				span.style.left = tx[4] + 'px';
+				span.style.top = (tx[5] - item.height * currentScale) + 'px';
+				span.style.fontSize = (item.height * currentScale) + 'px';
+				span.style.fontFamily = item.fontName || 'sans-serif';
+
+				const trimmed = item.str.trim();
+				if (DESIGNATOR_RE.test(trimmed)) {
+					span.classList.add('designator');
+					span.title = '点击定位: ' + trimmed;
+					span.addEventListener('click', (e) => {
+						e.stopPropagation();
+						sendDesignator(trimmed);
+					});
+				}
+				textLayer.appendChild(span);
+			}
+
+			container.appendChild(wrapper);
+		}
+
+		function sendDesignator(designator) {
+			channel.postMessage({ type: 'locate-designator', designator });
+			showToast('已发送位号: ' + designator);
+		}
+
+		function showToast(msg) {
+			const toast = document.getElementById('toast');
+			toast.textContent = msg;
+			toast.classList.add('show');
+			setTimeout(() => toast.classList.remove('show'), 2000);
+		}
+
+		// Zoom
+		document.getElementById('zoomIn').addEventListener('click', () => zoom(0.2));
+		document.getElementById('zoomOut').addEventListener('click', () => zoom(-0.2));
+		document.getElementById('zoomFit').addEventListener('click', () => {
+			currentScale = calcFitScale();
+			renderAllPages();
+		});
+
+		function zoom(delta) {
+			currentScale = Math.max(0.3, Math.min(5.0, currentScale + delta));
+			renderAllPages();
+		}
+
+		function updateZoomDisplay() {
+			zoomLevelEl.textContent = Math.round(currentScale * 100) + '%';
+		}
+
+		// Page navigation (scroll to page)
+		document.getElementById('prevPage').addEventListener('click', () => scrollToPage(-1));
+		document.getElementById('nextPage').addEventListener('click', () => scrollToPage(1));
+
+		function scrollToPage(delta) {
+			const pages = container.querySelectorAll('.page-wrapper');
+			const scrollTop = container.scrollTop;
+			const containerHeight = container.clientHeight;
+			let currentIdx = 0;
+			for (let i = 0; i < pages.length; i++) {
+				if (pages[i].offsetTop <= scrollTop + containerHeight / 3) currentIdx = i;
+			}
+			const targetIdx = Math.max(0, Math.min(pages.length - 1, currentIdx + delta));
+			pages[targetIdx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}
+
+		container.addEventListener('scroll', () => updatePageNum());
+
+		function updatePageNum() {
+			const pages = container.querySelectorAll('.page-wrapper');
+			const scrollTop = container.scrollTop;
+			const containerHeight = container.clientHeight;
+			let current = 1;
+			for (let i = 0; i < pages.length; i++) {
+				if (pages[i].offsetTop <= scrollTop + containerHeight / 3) current = i + 1;
+			}
+			pageNumEl.textContent = current;
+		}
+
+		// Ctrl+scroll zoom
+		container.addEventListener('wheel', (e) => {
+			if (e.ctrlKey) {
+				e.preventDefault();
+				zoom(e.deltaY < 0 ? 0.1 : -0.1);
+			}
+		}, { passive: false });
+
+		// Outline / bookmarks
+		async function loadOutline() {
+			const outline = await pdfDoc.getOutline();
+			const list = document.getElementById('outlineList');
+			if (!outline || outline.length === 0) {
+				list.innerHTML = '<div style="padding:12px;color:#888;">无书签</div>';
+				return;
+			}
+			renderOutlineItems(outline, list, 0);
+		}
+
+		function renderOutlineItems(items, parent, level) {
+			for (const item of items) {
+				const div = document.createElement('div');
+				div.className = 'outline-item' + (level > 0 ? ' level-' + Math.min(level, 2) : '');
+				div.textContent = item.title;
+				div.addEventListener('click', async () => {
+					if (item.dest) {
+						let dest = item.dest;
+						if (typeof dest === 'string') dest = await pdfDoc.getDestination(dest);
+						if (dest) {
+							const pageIdx = await pdfDoc.getPageIndex(dest[0]);
+							const pages = container.querySelectorAll('.page-wrapper');
+							if (pages[pageIdx]) pages[pageIdx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+						}
+					}
+				});
+				parent.appendChild(div);
+				if (item.items && item.items.length > 0) {
+					renderOutlineItems(item.items, parent, level + 1);
+				}
+			}
+		}
+
+		document.getElementById('toggleOutline').addEventListener('click', () => {
+			document.getElementById('sidebar').classList.toggle('open');
+		});
+	</script>
+</body>
+</html>

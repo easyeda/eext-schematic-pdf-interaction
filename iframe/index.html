@@ -29,6 +29,12 @@
 	<label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;color:#666;cursor:pointer;">
 		<input type="checkbox" id="autoHide" checked /> 自动收起弹窗
 	</label>
+	<label style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:13px;color:#666;cursor:pointer;">
+		<input type="checkbox" id="autoPan" checked /> 自动平移
+	</label>
+	<label style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:13px;color:#666;cursor:pointer;">
+		<input type="checkbox" id="autoZoom" /> 自动缩放定位
+	</label>
 
 	<script>
 		console.log('[eext-pdf] iframe loaded');
@@ -38,13 +44,41 @@
 		var previewBtn = document.getElementById('previewBtn');
 		var selectedFile = null;
 
-		// Relay: popup postMessage -> iframe receives -> write localStorage
+		// Relay: popup postMessage -> iframe -> directly call PCB API
 		window.addEventListener('message', function(e) {
-			if (e.data && e.data.type) {
-				console.log('[eext-pdf] iframe relay:', e.data.type);
-				try { localStorage.setItem('__eext_pdf_cmd', JSON.stringify(e.data)); } catch(ex) {
-					console.log('[eext-pdf] iframe localStorage write failed:', ex);
-				}
+			if (e.data && e.data.type === 'locate-designator' && e.data.designator) {
+				console.log('[eext-pdf] iframe locating:', e.data.designator);
+				var edaObj = (typeof eda !== 'undefined') ? eda : (window.parent && window.parent.eda);
+				if (!edaObj) { console.log('[eext-pdf] no eda object'); return; }
+				edaObj.pcb_SelectControl.doCrossProbeSelect(
+					[e.data.designator], undefined, undefined, true, true
+				).then(function(result) {
+					console.log('[eext-pdf] crossProbe result:', result);
+					if (!result) return;
+					if (document.getElementById('autoZoom').checked) {
+						return edaObj.dmt_EditorControl.zoomToSelectedPrimitives();
+					} else if (document.getElementById('autoPan').checked) {
+						return edaObj.pcb_SelectControl.getAllSelectedPrimitives_PrimitiveId().then(function(ids) {
+							if (!ids || ids.length === 0) return;
+							return edaObj.pcb_Primitive.getPrimitivesBBox(ids).then(function(bbox) {
+								if (!bbox) return;
+								var cx = (bbox.minX + bbox.maxX) / 2;
+								var cy = (bbox.minY + bbox.maxY) / 2;
+								return edaObj.pcb_Document.navigateToCoordinates(cx, cy);
+							});
+						});
+					}
+				}).then(function() {
+					edaObj.sys_Message.showToastMessage('已定位: ' + e.data.designator);
+				}).catch(function(err) {
+					console.log('[eext-pdf] locate error:', err);
+					edaObj.sys_Message.showToastMessage('定位失败: ' + err.message);
+				});
+			}
+			if (e.data && e.data.type === 'popup-closed') {
+				console.log('[eext-pdf] popup closed, showing iframe');
+				var edaObj2 = (typeof eda !== 'undefined') ? eda : (window.parent && window.parent.eda);
+				if (edaObj2) edaObj2.sys_IFrame.showIFrame('pdf-picker');
 			}
 		});
 
@@ -76,8 +110,10 @@
 				w.__pdfData = new Uint8Array(reader.result);
 				w.__pdfName = selectedFile.name;
 				if (document.getElementById('autoHide').checked) {
-					console.log('[eext-pdf] writing hide-iframe to localStorage');
-					try { localStorage.setItem('__eext_pdf_cmd', JSON.stringify({type:'hide-iframe'})); } catch(ex) {}
+					try {
+						var edaObj2 = (typeof eda !== 'undefined') ? eda : (window.parent && window.parent.eda);
+						if (edaObj2) edaObj2.sys_IFrame.hideIFrame('pdf-picker');
+					} catch(ex) { console.log('[eext-pdf] hide failed:', ex); }
 				}
 			};
 			reader.readAsArrayBuffer(selectedFile);
@@ -114,7 +150,7 @@
 			h.push('.text-layer span:hover { background: rgba(24,144,255,0.3); border-radius: 2px; }');
 			h.push('.text-layer span.designator { background: rgba(24,144,255,0.12); border-radius: 2px; }');
 			h.push('.text-layer span.designator:hover { background: rgba(24,144,255,0.4); }');
-			h.push('.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1890ff; color: #fff; padding: 8px 20px; border-radius: 6px; font-size: 14px; z-index: 100; opacity: 0; transition: opacity 0.3s; pointer-events: none; }');
+			h.push('.toast { position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: #1890ff; color: #fff; padding: 8px 20px; border-radius: 6px; font-size: 14px; z-index: 100; opacity: 0; transition: opacity 0.3s; pointer-events: none; }');
 			h.push('.toast.show { opacity: 1; }');
 			h.push('</style></head><body>');
 			h.push('<div class="toolbar">');
@@ -262,6 +298,7 @@
 			h.push('});}');
 			h.push('document.getElementById("toggleOutline").addEventListener("click",function(){document.getElementById("sidebar").classList.toggle("open");});');
 			h.push('loadPdf();');
+			h.push('window.addEventListener("beforeunload",function(){if(window.opener){window.opener.postMessage({type:"popup-closed"},"*");}});');
 			h.push('}');
 			h.push('</sc' + 'ript></body></html>');
 			return h.join('\n');
