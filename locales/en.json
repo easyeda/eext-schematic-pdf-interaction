@@ -1,0 +1,6 @@
+{
+	"Open Schematic PDF": "Open Schematic PDF",
+	"Designator located": "Designator located: ${1}",
+	"Designator not found": "Designator not found: ${1}",
+	"Please open a PCB document first": "Please open a PCB document first"
+}

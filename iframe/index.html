@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Open Schematic PDF</title>
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+		body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #f5f5f5; color: #333; }
+		h3 { margin-bottom: 12px; font-size: 15px; font-weight: 600; }
+		.file-area { border: 2px dashed #ccc; border-radius: 8px; padding: 24px 16px; text-align: center; margin-bottom: 12px; background: #fff; cursor: pointer; transition: border-color 0.2s; }
+		.file-area:hover { border-color: #1890ff; }
+		.file-area.has-file { border-color: #52c41a; border-style: solid; }
+		.file-name { margin-top: 8px; font-size: 13px; color: #666; word-break: break-all; }
+		input[type="file"] { display: none; }
+		.btn { display: block; width: 100%; padding: 8px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; background: #1890ff; color: #fff; transition: opacity 0.2s; }
+		.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+		.btn:not(:disabled):hover { opacity: 0.85; }
+	</style>
+</head>
+<body>
+	<h3>选择原理图 PDF 文件</h3>
+	<div class="file-area" id="dropArea">
+		<div>点击选择或拖拽 PDF 文件</div>
+		<div class="file-name" id="fileName"></div>
+	</div>
+	<input type="file" id="fileInput" accept=".pdf,application/pdf" />
+	<button class="btn" id="previewBtn" disabled>预览 PDF</button>
+	<label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;color:#666;cursor:pointer;">
+		<input type="checkbox" id="autoHide" checked /> 自动收起弹窗
+	</label>
+
+	<script>
+		console.log('[eext-pdf] iframe loaded');
+		var fileInput = document.getElementById('fileInput');
+		var dropArea = document.getElementById('dropArea');
+		var fileNameEl = document.getElementById('fileName');
+		var previewBtn = document.getElementById('previewBtn');
+		var selectedFile = null;
+
+		// Relay: popup postMessage -> iframe receives -> write localStorage
+		window.addEventListener('message', function(e) {
+			if (e.data && e.data.type) {
+				console.log('[eext-pdf] iframe relay:', e.data.type);
+				try { localStorage.setItem('__eext_pdf_cmd', JSON.stringify(e.data)); } catch(ex) {
+					console.log('[eext-pdf] iframe localStorage write failed:', ex);
+				}
+			}
+		});
+
+		dropArea.addEventListener('click', function() { fileInput.click(); });
+		dropArea.addEventListener('dragover', function(e) { e.preventDefault(); dropArea.style.borderColor = '#1890ff'; });
+		dropArea.addEventListener('dragleave', function() { dropArea.style.borderColor = selectedFile ? '#52c41a' : '#ccc'; });
+		dropArea.addEventListener('drop', function(e) {
+			e.preventDefault();
+			var file = e.dataTransfer.files[0];
+			if (file && file.type === 'application/pdf') setFile(file);
+		});
+		fileInput.addEventListener('change', function() { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+		function setFile(file) {
+			selectedFile = file;
+			fileNameEl.textContent = file.name;
+			dropArea.classList.add('has-file');
+			previewBtn.disabled = false;
+		}
+
+		previewBtn.addEventListener('click', function() {
+			if (!selectedFile) return;
+			var reader = new FileReader();
+			reader.onload = function() {
+				var w = window.open('', '_blank', 'popup,width=900,height=1000,scrollbars=yes');
+				if (!w) return;
+				w.document.write(getViewerHtml());
+				w.document.close();
+				w.__pdfData = new Uint8Array(reader.result);
+				w.__pdfName = selectedFile.name;
+				if (document.getElementById('autoHide').checked) {
+					console.log('[eext-pdf] writing hide-iframe to localStorage');
+					try { localStorage.setItem('__eext_pdf_cmd', JSON.stringify({type:'hide-iframe'})); } catch(ex) {}
+				}
+			};
+			reader.readAsArrayBuffer(selectedFile);
+		});
+
+		function getViewerHtml() {
+			var h = [];
+			h.push('<!doctype html><html lang="zh-Hans"><head><meta charset="utf-8" />');
+			h.push('<meta name="viewport" content="width=device-width, initial-scale=1.0" />');
+			h.push('<title>PDF Viewer</title><style>');
+			h.push('* { margin: 0; padding: 0; box-sizing: border-box; }');
+			h.push('body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #404040; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }');
+			h.push('.toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #333; color: #fff; font-size: 13px; flex-shrink: 0; z-index: 10; }');
+			h.push('.toolbar button { background: #555; color: #fff; border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 13px; }');
+			h.push('.toolbar button:hover { background: #666; }');
+			h.push('.toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }');
+			h.push('.toolbar .page-info { min-width: 80px; text-align: center; }');
+			h.push('.toolbar .spacer { flex: 1; }');
+			h.push('.toolbar .title { font-weight: 600; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }');
+			h.push('.main { display: flex; flex: 1; overflow: hidden; }');
+			h.push('.sidebar { width: 220px; background: #2a2a2a; color: #ccc; overflow-y: auto; border-right: 1px solid #555; flex-shrink: 0; font-size: 13px; display: none; }');
+			h.push('.sidebar.open { display: block; }');
+			h.push('.sidebar-title { padding: 10px 12px; font-weight: 600; color: #fff; border-bottom: 1px solid #444; }');
+			h.push('.outline-item { padding: 6px 12px; cursor: pointer; border-bottom: 1px solid #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }');
+			h.push('.outline-item:hover { background: #3a3a3a; }');
+			h.push('.outline-item.level-1 { padding-left: 24px; }');
+			h.push('.outline-item.level-2 { padding-left: 36px; }');
+			h.push('.pdf-container { flex: 1; overflow: auto; padding: 8px; }');
+			h.push('.pdf-inner { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: fit-content; }');
+			h.push('.page-wrapper { position: relative; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); flex-shrink: 0; }');
+			h.push('.page-wrapper canvas { display: block; }');
+			h.push('.text-layer { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; opacity: 0.3; line-height: 1; }');
+			h.push('.text-layer span { position: absolute; white-space: pre; color: transparent; cursor: pointer; padding: 1px 2px; }');
+			h.push('.text-layer span:hover { background: rgba(24,144,255,0.3); border-radius: 2px; }');
+			h.push('.text-layer span.designator { background: rgba(24,144,255,0.12); border-radius: 2px; }');
+			h.push('.text-layer span.designator:hover { background: rgba(24,144,255,0.4); }');
+			h.push('.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1890ff; color: #fff; padding: 8px 20px; border-radius: 6px; font-size: 14px; z-index: 100; opacity: 0; transition: opacity 0.3s; pointer-events: none; }');
+			h.push('.toast.show { opacity: 1; }');
+			h.push('</style></head><body>');
+			h.push('<div class="toolbar">');
+			h.push('<button id="toggleOutline" title="书签">☰</button>');
+			h.push('<button id="prevPage">◀</button>');
+			h.push('<span class="page-info"><span id="pageNum">0</span> / <span id="pageCount">0</span></span>');
+			h.push('<button id="nextPage">▶</button>');
+			h.push('<span class="spacer"></span>');
+			h.push('<button id="zoomOut">−</button>');
+			h.push('<span id="zoomLevel">100%</span>');
+			h.push('<button id="zoomIn">+</button>');
+			h.push('<button id="zoomFit">适合</button>');
+			h.push('<span class="spacer"></span>');
+			h.push('<span class="title" id="docTitle"></span>');
+			h.push('</div>');
+			h.push('<div class="main">');
+			h.push('<div class="sidebar" id="sidebar"><div class="sidebar-title">书签</div><div id="outlineList"></div></div>');
+			h.push('<div class="pdf-container" id="pdfContainer"><div class="pdf-inner" id="pdfInner"></div></div>');
+			h.push('</div>');
+			h.push('<div class="toast" id="toast"></div>');
+			h.push('<sc' + 'ript>');
+			h.push('(function(){');
+			h.push('var s=document.createElement("script");');
+			h.push('s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";');
+			h.push('s.onload=function(){');
+			h.push('var pdfjsLib=window.pdfjsLib;');
+			h.push('pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";');
+			h.push('console.log("[eext-pdf] pdf.js loaded:",!!pdfjsLib);');
+			h.push('run(pdfjsLib);');
+			h.push('};');
+			h.push('document.head.appendChild(s);');
+			h.push('})();');
+			h.push('function run(pdfjsLib){');
+			h.push('var RE=/^[A-Z]{1,4}\\d+[A-Z]?$/;');
+			h.push('var pdfData=window.__pdfData;');
+			h.push('var pdfName=window.__pdfName||"PDF";');
+			h.push('document.getElementById("docTitle").textContent=pdfName;');
+			h.push('document.title=pdfName;');
+			h.push('var pdfDoc=null,currentScale=1.0,firstPageWidth=612;');
+			h.push('var ctr=document.getElementById("pdfContainer");');
+			h.push('var inner=document.getElementById("pdfInner");');
+			h.push('var pageNumEl=document.getElementById("pageNum");');
+			h.push('var pageCountEl=document.getElementById("pageCount");');
+			h.push('var zoomLevelEl=document.getElementById("zoomLevel");');
+			h.push('function loadPdf(){');
+			h.push('if(!pdfData||!pdfjsLib)return;');
+			h.push('pdfjsLib.getDocument({data:pdfData}).promise.then(function(doc){');
+			h.push('pdfDoc=doc;return pdfDoc.getPage(1);');
+			h.push('}).then(function(fp){');
+			h.push('firstPageWidth=fp.getViewport({scale:1.0}).width;');
+			h.push('pageCountEl.textContent=pdfDoc.numPages;');
+			h.push('currentScale=calcFitScale();');
+			h.push('return renderAllPages();');
+			h.push('}).then(function(){loadOutline();});');
+			h.push('}');
+			h.push('function calcFitScale(){');
+			h.push('if(!pdfDoc)return 1;');
+			h.push('return Math.max(0.5,Math.min((ctr.clientWidth-32)/firstPageWidth,2.0));');
+			h.push('}');
+			h.push('function renderAllPages(){');
+			h.push('inner.innerHTML="";var chain=Promise.resolve();');
+			h.push('for(var i=1;i<=pdfDoc.numPages;i++){');
+			h.push('(function(n){chain=chain.then(function(){return renderPage(n);});})(i);');
+			h.push('}');
+			h.push('return chain.then(function(){updatePageNum();updateZoomDisplay();});');
+			h.push('}');
+			h.push('function renderPage(num){');
+			h.push('return pdfDoc.getPage(num).then(function(page){');
+			h.push('var vp=page.getViewport({scale:currentScale});');
+			h.push('var wr=document.createElement("div");wr.className="page-wrapper";');
+			h.push('wr.dataset.page=num;wr.style.width=vp.width+"px";wr.style.height=vp.height+"px";');
+			h.push('var cv=document.createElement("canvas");');
+			h.push('cv.width=vp.width*window.devicePixelRatio;cv.height=vp.height*window.devicePixelRatio;');
+			h.push('cv.style.width=vp.width+"px";cv.style.height=vp.height+"px";');
+			h.push('var ctx=cv.getContext("2d");ctx.scale(window.devicePixelRatio,window.devicePixelRatio);');
+			h.push('wr.appendChild(cv);');
+			h.push('return page.render({canvasContext:ctx,viewport:vp}).promise.then(function(){');
+			h.push('return page.getTextContent();');
+			h.push('}).then(function(tc){');
+			h.push('var tl=document.createElement("div");tl.className="text-layer";wr.appendChild(tl);');
+			h.push('tc.items.forEach(function(item){');
+			h.push('if(!item.str||!item.str.trim())return;');
+			h.push('var tx=pdfjsLib.Util.transform(vp.transform,item.transform);');
+			h.push('var sp=document.createElement("span");sp.textContent=item.str;');
+			h.push('sp.style.left=tx[4]+"px";');
+			h.push('sp.style.top=(tx[5]-item.height*currentScale)+"px";');
+			h.push('sp.style.fontSize=(item.height*currentScale)+"px";');
+			h.push('sp.style.fontFamily=item.fontName||"sans-serif";');
+			h.push('var tr=item.str.trim();');
+			h.push('if(RE.test(tr)){sp.classList.add("designator");sp.title="点击定位: "+tr;}');
+			h.push('sp.addEventListener("click",function(e){');
+			h.push('e.stopPropagation();var t=e.target.textContent.trim();');
+			h.push('if(RE.test(t)){');
+			h.push('console.log("[eext-pdf] clicked designator:",t);');
+			// popup -> postMessage -> iframe -> localStorage -> extension polls
+			h.push('if(window.opener){window.opener.postMessage({type:"locate-designator",designator:t},"*");}');
+			h.push('showToast("已发送位号: "+t);');
+			h.push('}});');
+			h.push('tl.appendChild(sp);');
+			h.push('});');
+			h.push('inner.appendChild(wr);');
+			h.push('});});');
+			h.push('}');
+			h.push('function showToast(m){var t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},2000);}');
+			h.push('document.getElementById("zoomIn").addEventListener("click",function(){zoom(0.25);});');
+			h.push('document.getElementById("zoomOut").addEventListener("click",function(){zoom(-0.25);});');
+			h.push('document.getElementById("zoomFit").addEventListener("click",function(){currentScale=calcFitScale();renderAllPages();});');
+			h.push('function zoom(d){currentScale=Math.max(0.3,Math.min(5.0,currentScale+d));renderAllPages();}');
+			h.push('function updateZoomDisplay(){zoomLevelEl.textContent=Math.round(currentScale*100)+"%";}');
+			h.push('document.getElementById("prevPage").addEventListener("click",function(){scrollToPage(-1);});');
+			h.push('document.getElementById("nextPage").addEventListener("click",function(){scrollToPage(1);});');
+			h.push('function scrollToPage(d){');
+			h.push('var ps=inner.querySelectorAll(".page-wrapper"),st=ctr.scrollTop,ch2=ctr.clientHeight,ci=0;');
+			h.push('for(var i=0;i<ps.length;i++){if(ps[i].offsetTop<=st+ch2/3)ci=i;}');
+			h.push('var ti=Math.max(0,Math.min(ps.length-1,ci+d));');
+			h.push('ps[ti].scrollIntoView({behavior:"smooth",block:"start"});');
+			h.push('}');
+			h.push('ctr.addEventListener("scroll",function(){updatePageNum();});');
+			h.push('function updatePageNum(){');
+			h.push('var ps=inner.querySelectorAll(".page-wrapper"),st=ctr.scrollTop,ch2=ctr.clientHeight,c=1;');
+			h.push('for(var i=0;i<ps.length;i++){if(ps[i].offsetTop<=st+ch2/3)c=i+1;}');
+			h.push('pageNumEl.textContent=c;');
+			h.push('}');
+			h.push('ctr.addEventListener("wheel",function(e){if(e.ctrlKey){e.preventDefault();zoom(e.deltaY<0?0.15:-0.15);}},{passive:false});');
+			h.push('function loadOutline(){');
+			h.push('pdfDoc.getOutline().then(function(ol){');
+			h.push('var list=document.getElementById("outlineList");');
+			h.push('if(!ol||ol.length===0){list.innerHTML="<div style=\\"padding:12px;color:#888;\\">无书签</div>";return;}');
+			h.push('renderOL(ol,list,0);');
+			h.push('});}');
+			h.push('function renderOL(items,parent,level){');
+			h.push('items.forEach(function(item){');
+			h.push('var div=document.createElement("div");');
+			h.push('div.className="outline-item"+(level>0?" level-"+Math.min(level,2):"");');
+			h.push('div.textContent=item.title;');
+			h.push('div.addEventListener("click",function(){');
+			h.push('if(item.dest){');
+			h.push('var p=(typeof item.dest==="string")?pdfDoc.getDestination(item.dest):Promise.resolve(item.dest);');
+			h.push('p.then(function(dest){if(!dest)return;return pdfDoc.getPageIndex(dest[0]).then(function(pi){');
+			h.push('var ps=inner.querySelectorAll(".page-wrapper");');
+			h.push('if(ps[pi])ps[pi].scrollIntoView({behavior:"smooth",block:"start"});');
+			h.push('});});}});');
+			h.push('parent.appendChild(div);');
+			h.push('if(item.items&&item.items.length>0)renderOL(item.items,parent,level+1);');
+			h.push('});}');
+			h.push('document.getElementById("toggleOutline").addEventListener("click",function(){document.getElementById("sidebar").classList.toggle("open");});');
+			h.push('loadPdf();');
+			h.push('}');
+			h.push('</sc' + 'ript></body></html>');
+			return h.join('\n');
+		}
+	</script>
+</body>
+</html>

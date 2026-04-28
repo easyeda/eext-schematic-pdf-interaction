@@ -1,0 +1,45 @@
+{
+	"name": "eext-schematic-pdf-interaction",
+	"uuid": "26d40432fa5441658d7b0d7589677219",
+	"displayName": "原理图PDF交互还是",
+	"description": "在PCB中预览原理图PDF，点击位号定位PCB元件",
+	"version": "1.0.0",
+	"publisher": "",
+	"engines": {
+		"eda": "^3.0.0"
+	},
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "extension-store",
+		"url": ""
+	},
+	"categories": "PCB",
+	"keywords": [
+		"Tool",
+		"PCB",
+		"PDF"
+	],
+	"images": {
+		"logo": "./images/logo.png"
+	},
+	"homepage": "",
+	"bugs": "",
+	"activationEvents": {},
+	"entry": "./dist/index",
+	"dependentExtensions": {},
+	"headerMenus": {
+		"pcb": [
+			{
+				"id": "schematic-pdf",
+				"title": "Schematic PDF Interaction",
+				"menuItems": [
+					{
+						"id": "open-pdf-dialog",
+						"title": "Open Schematic PDF...",
+						"registerFn": "openPdfDialog"
+					}
+				]
+			}
+		]
+	}
+}

@@ -1,0 +1,6 @@
+{
+	"Open Schematic PDF": "打开原理图PDF",
+	"Designator located": "已定位位号: ${1}",
+	"Designator not found": "未找到位号: ${1}",
+	"Please open a PCB document first": "请先打开PCB文档"
+}
