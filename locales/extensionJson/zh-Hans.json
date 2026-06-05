@@ -1,4 +1,11 @@
 {
 	"Schematic PDF Interaction": "原理图PDF交互",
-	"Open Schematic PDF...": "打开原理图PDF..."
+	"Open Schematic PDF...": "打开原理图PDF...",
+	"在PCB编辑器中预览原理图PDF，点击元件位号文本自动选中高亮并定位PCB封装，支持自动平移和缩放": "在PCB编辑器中预览原理图PDF，点击元件位号文本自动选中高亮并定位PCB封装，支持自动平移和缩放",
+	"Tool": "工具",
+	"PCB": "PCB",
+	"PDF": "PDF",
+	"Schematic": "原理图",
+	"CrossProbe": "交叉探查",
+	"Designator": "位号"
 }

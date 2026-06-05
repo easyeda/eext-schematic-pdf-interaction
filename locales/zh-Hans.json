@@ -2,5 +2,21 @@
 	"Open Schematic PDF": "打开原理图PDF",
 	"Designator located": "已定位位号: ${1}",
 	"Designator not found": "未找到位号: ${1}",
-	"Please open a PCB document first": "请先打开PCB文档"
+	"Please open a PCB document first": "请先打开PCB文档",
+	"Select Schematic PDF File": "选择原理图 PDF 文件",
+	"Click to select or drag PDF file": "点击选择或拖拽 PDF 文件",
+	"Preview PDF": "预览 PDF",
+	"Auto collapse dialog": "自动收起弹窗",
+	"Auto pan": "自动平移",
+	"Auto zoom to locate": "自动缩放定位",
+	"Please select a PDF file": "请选择 PDF 文件",
+	"Located": "已定位: ${1}",
+	"Locate failed": "定位失败: ${1}",
+	"Not found designator": "未找到位号: ${1}",
+	"Bookmark": "书签",
+	"Fit": "适合",
+	"No bookmarks": "无书签",
+	"Click to locate": "点击定位: ${1}",
+	"Sent designator": "已发送位号: ${1}",
+	"PDF load failed": "PDF 加载失败: ${1}"
 }

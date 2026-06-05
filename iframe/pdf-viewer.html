@@ -68,7 +68,7 @@
 </head>
 <body>
 	<div class="toolbar">
-		<button id="toggleOutline" title="书签">☰</button>
+		<button id="toggleOutline" title="Bookmark">☰</button>
 		<button id="prevPage">◀</button>
 		<span class="page-info"><span id="pageNum">0</span> / <span id="pageCount">0</span></span>
 		<button id="nextPage">▶</button>
@@ -76,13 +76,13 @@
 		<button id="zoomOut">−</button>
 		<span id="zoomLevel">100%</span>
 		<button id="zoomIn">+</button>
-		<button id="zoomFit">适合</button>
+		<button id="zoomFit">Fit</button>
 		<span class="spacer"></span>
 		<span class="title" id="docTitle"></span>
 	</div>
 	<div class="main">
 		<div class="sidebar" id="sidebar">
-			<div class="sidebar-title">书签</div>
+			<div class="sidebar-title" id="sidebarTitle">Bookmark</div>
 			<div id="outlineList"></div>
 		</div>
 		<div class="pdf-container" id="pdfContainer"></div>
@@ -92,6 +92,16 @@
 	<script type="module">
 		const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.min.mjs');
 		pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.9.155/pdf.worker.min.mjs';
+
+		// i18n initialization
+		const edaObj = (typeof eda !== 'undefined') ? eda : (window.parent && window.parent.eda);
+		function t(tag, ...args) {
+			if (edaObj && edaObj.sys_I18n) return edaObj.sys_I18n.text(tag, undefined, undefined, ...args);
+			return tag;
+		}
+		document.getElementById('toggleOutline').title = t('Bookmark');
+		document.getElementById('zoomFit').textContent = t('Fit');
+		document.getElementById('sidebarTitle').textContent = t('Bookmark');
 
 		const channel = new BroadcastChannel('eext-pdf-pcb');
 
@@ -174,7 +184,7 @@
 
 				const trimmed = item.str.trim();
 				span.classList.add('designator');
-				span.title = '点击定位: ' + trimmed;
+				span.title = t('Click to locate', trimmed);
 				span.addEventListener('click', (e) => {
 					e.stopPropagation();
 					sendDesignator(trimmed);
@@ -187,7 +197,7 @@
 
 		function sendDesignator(designator) {
 			channel.postMessage({ type: 'locate-designator', designator });
-			showToast('已发送位号: ' + designator);
+			showToast(t('Sent designator', designator));
 		}
 
 		function showToast(msg) {
@@ -256,7 +266,7 @@
 			const outline = await pdfDoc.getOutline();
 			const list = document.getElementById('outlineList');
 			if (!outline || outline.length === 0) {
-				list.innerHTML = '<div style="padding:12px;color:#888;">无书签</div>';
+				list.innerHTML = '<div style="padding:12px;color:#888;">' + t('No bookmarks') + '</div>';
 				return;
 			}
 			renderOutlineItems(outline, list, 0);

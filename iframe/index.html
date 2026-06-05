@@ -42,25 +42,35 @@
 	</style>
 </head>
 <body>
-	<h3>选择原理图 PDF 文件</h3>
+	<h3 id="titleSelect"></h3>
 	<div class="file-area" id="dropArea">
-		<div>点击选择或拖拽 PDF 文件</div>
+		<div id="dropText"></div>
 		<div class="file-name" id="fileName"></div>
 	</div>
 	<input type="file" id="fileInput" accept=".pdf,application/pdf" />
-	<button class="btn" id="previewBtn" disabled>预览 PDF</button>
+	<button class="btn" id="previewBtn" disabled></button>
 	<label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;color:#666;cursor:pointer;">
-		<input type="checkbox" id="autoHide" checked /> 自动收起弹窗
+		<input type="checkbox" id="autoHide" checked /> <span id="labelAutoHide"></span>
 	</label>
 	<label style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:13px;color:#666;cursor:pointer;">
-		<input type="checkbox" id="autoPan" checked /> 自动平移
+		<input type="checkbox" id="autoPan" checked /> <span id="labelAutoPan"></span>
 	</label>
 	<label style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:13px;color:#666;cursor:pointer;">
-		<input type="checkbox" id="autoZoom" /> 自动缩放定位
+		<input type="checkbox" id="autoZoom" /> <span id="labelAutoZoom"></span>
 	</label>
 
 	<script>
 		console.log('[eext-pdf] iframe loaded, pdfjsLib:', !!window.pdfjsLib);
+		// i18n initialization
+		var edaObj = (typeof eda !== 'undefined') ? eda : (window.parent && window.parent.eda);
+		if (edaObj && edaObj.sys_I18n) {
+			document.getElementById('titleSelect').textContent = edaObj.sys_I18n.text('Select Schematic PDF File');
+			document.getElementById('dropText').textContent = edaObj.sys_I18n.text('Click to select or drag PDF file');
+			document.getElementById('previewBtn').textContent = edaObj.sys_I18n.text('Preview PDF');
+			document.getElementById('labelAutoHide').textContent = edaObj.sys_I18n.text('Auto collapse dialog');
+			document.getElementById('labelAutoPan').textContent = edaObj.sys_I18n.text('Auto pan');
+			document.getElementById('labelAutoZoom').textContent = edaObj.sys_I18n.text('Auto zoom to locate');
+		}
 		var fileInput = document.getElementById('fileInput');
 		var dropArea = document.getElementById('dropArea');
 		var fileNameEl = document.getElementById('fileName');
@@ -84,7 +94,7 @@
 					console.log('[eext-pdf] crossProbe result:', result);
 					// Bug1 fix: check result and branch into success/failure toast
 					if (!result) {
-						edaObj.sys_Message.showToastMessage('未找到位号: ' + designator);
+										edaObj.sys_Message.showToastMessage(edaObj.sys_I18n.text('Not found designator', undefined, undefined, designator));
 						return;
 					}
 					var navPromise;
@@ -104,11 +114,11 @@
 						navPromise = Promise.resolve();
 					}
 					return navPromise.then(function() {
-						edaObj.sys_Message.showToastMessage('已定位: ' + designator);
+						edaObj.sys_Message.showToastMessage(edaObj.sys_I18n.text('Located', undefined, undefined, designator));
 					});
 				}).catch(function(err) {
 					console.error('[eext-pdf] locate error:', err);
-					edaObj.sys_Message.showToastMessage('定位失败: ' + (err.message || err));
+					edaObj.sys_Message.showToastMessage(edaObj.sys_I18n.text('Locate failed', undefined, undefined, err.message || err));
 				});
 			}
 			if (e.data && e.data.type === 'popup-closed') {
@@ -130,7 +140,7 @@
 				setFile(file);
 			} else if (file) {
 				// Bug5 fix: show feedback for non-PDF files
-				fileNameEl.textContent = '请选择 PDF 文件';
+				fileNameEl.textContent = edaObj ? edaObj.sys_I18n.text('Please select a PDF file') : 'Please select a PDF file';
 				fileNameEl.style.color = '#ff4d4f';
 				setTimeout(function() {
 					fileNameEl.textContent = selectedFile ? selectedFile.name : '';
@@ -177,6 +187,26 @@
 		});
 
 		function getViewerHtml() {
+			var i18n = {};
+			if (edaObj && edaObj.sys_I18n) {
+				i18n.bookmark = edaObj.sys_I18n.text('Bookmark');
+				i18n.fit = edaObj.sys_I18n.text('Fit');
+				i18n.noBookmarks = edaObj.sys_I18n.text('No bookmarks');
+				i18n.clickToLocate = edaObj.sys_I18n.text('Click to locate', undefined, undefined, '');
+				i18n.sentDesignator = edaObj.sys_I18n.text('Sent designator', undefined, undefined, '');
+				i18n.pdfLoadFailed = edaObj.sys_I18n.text('PDF load failed', undefined, undefined, '');
+			} else {
+				i18n.bookmark = 'Bookmark';
+				i18n.fit = 'Fit';
+				i18n.noBookmarks = 'No bookmarks';
+				i18n.clickToLocate = 'Click to locate: ';
+				i18n.sentDesignator = 'Sent designator: ';
+				i18n.pdfLoadFailed = 'PDF load failed: ';
+			}
+			// Strip trailing placeholder text like ": ${1}" to get prefix only
+			i18n.clickToLocate = i18n.clickToLocate.replace(/\$\{1\}$/, '').replace(/: $/, ': ');
+			i18n.sentDesignator = i18n.sentDesignator.replace(/\$\{1\}$/, '').replace(/: $/, ': ');
+			i18n.pdfLoadFailed = i18n.pdfLoadFailed.replace(/\$\{1\}$/, '').replace(/: $/, ': ');
 			var h = [];
 			h.push('<!doctype html><html lang="zh-Hans"><head><meta charset="utf-8" />');
 			h.push('<meta name="viewport" content="width=device-width, initial-scale=1.0" />');
@@ -211,7 +241,7 @@
 			h.push('.toast.show { opacity: 1; }');
 			h.push('</style></head><body>');
 			h.push('<div class="toolbar">');
-			h.push('<button id="toggleOutline" title="书签">☰</button>');
+			h.push('<button id="toggleOutline" title="' + i18n.bookmark + '">☰</button>');
 			h.push('<button id="prevPage">◀</button>');
 			h.push('<span class="page-info"><span id="pageNum">0</span> / <span id="pageCount">0</span></span>');
 			h.push('<button id="nextPage">▶</button>');
@@ -219,12 +249,12 @@
 			h.push('<button id="zoomOut">−</button>');
 			h.push('<span id="zoomLevel">100%</span>');
 			h.push('<button id="zoomIn">+</button>');
-			h.push('<button id="zoomFit">适合</button>');
+			h.push('<button id="zoomFit">' + i18n.fit + '</button>');
 			h.push('<span class="spacer"></span>');
 			h.push('<span class="title" id="docTitle"></span>');
 			h.push('</div>');
 			h.push('<div class="main">');
-			h.push('<div class="sidebar" id="sidebar"><div class="sidebar-title">书签</div><div id="outlineList"></div></div>');
+			h.push('<div class="sidebar" id="sidebar"><div class="sidebar-title">' + i18n.bookmark + '</div><div id="outlineList"></div></div>');
 			h.push('<div class="pdf-container" id="pdfContainer"><div class="pdf-inner" id="pdfInner"></div></div>');
 			h.push('</div>');
 			h.push('<div class="toast" id="toast"></div>');
@@ -259,7 +289,7 @@
 			h.push('return renderAllPages();');
 			h.push('}).then(function(){loadOutline();}).catch(function(err){');
 			h.push('console.error("[eext-pdf] PDF load error:",err);');
-			h.push('inner.innerHTML="<div style=\\"padding:40px;color:#ff4d4f;text-align:center;font-size:15px;\\">PDF 加载失败: "+(err.message||err)+"</div>";');
+			h.push('inner.innerHTML="<div style=\\"padding:40px;color:#ff4d4f;text-align:center;font-size:15px;\\">' + i18n.pdfLoadFailed + '"+(err.message||err)+"</div>";');
 			h.push('});');
 			h.push('}');
 			h.push('function calcFitScale(){');
@@ -298,13 +328,13 @@
 			h.push('sp.style.fontSize=h2+"px";');
 			h.push('sp.style.fontFamily=item.fontName||"sans-serif";');
 			h.push('var tr=item.str.trim();');
-			h.push('sp.classList.add("designator");sp.title="点击定位: "+tr;');
+			h.push('sp.classList.add("designator");sp.title="' + i18n.clickToLocate + '"+tr;');
 			h.push('sp.addEventListener("click",function(e){');
 			h.push('e.stopPropagation();var t=e.target.textContent.trim();');
 			h.push('console.log("[eext-pdf] clicked designator:",t);');
 			// popup -> postMessage -> iframe -> localStorage -> extension polls
 			h.push('if(window.opener){window.opener.postMessage({type:"locate-designator",designator:t},"*");}');
-			h.push('showToast("已发送位号: "+t);');
+			h.push('showToast("' + i18n.sentDesignator + '"+t);');
 			h.push('});');
 			h.push('tl.appendChild(sp);');
 			h.push('});');
@@ -335,7 +365,7 @@
 			h.push('function loadOutline(){');
 			h.push('pdfDoc.getOutline().then(function(ol){');
 			h.push('var list=document.getElementById("outlineList");');
-			h.push('if(!ol||ol.length===0){list.innerHTML="<div style=\\"padding:12px;color:#888;\\">无书签</div>";return;}');
+			h.push('if(!ol||ol.length===0){list.innerHTML="<div style=\\"padding:12px;color:#888;\\">' + i18n.noBookmarks + '</div>";return;}');
 			h.push('renderOL(ol,list,0);');
 			h.push('});}');
 			h.push('function renderOL(items,parent,level){');

@@ -2,5 +2,21 @@
 	"Open Schematic PDF": "Open Schematic PDF",
 	"Designator located": "Designator located: ${1}",
 	"Designator not found": "Designator not found: ${1}",
-	"Please open a PCB document first": "Please open a PCB document first"
+	"Please open a PCB document first": "Please open a PCB document first",
+	"Select Schematic PDF File": "Select Schematic PDF File",
+	"Click to select or drag PDF file": "Click to select or drag PDF file",
+	"Preview PDF": "Preview PDF",
+	"Auto collapse dialog": "Auto collapse dialog",
+	"Auto pan": "Auto pan",
+	"Auto zoom to locate": "Auto zoom to locate",
+	"Please select a PDF file": "Please select a PDF file",
+	"Located": "Located: ${1}",
+	"Locate failed": "Locate failed: ${1}",
+	"Not found designator": "Not found designator: ${1}",
+	"Bookmark": "Bookmark",
+	"Fit": "Fit",
+	"No bookmarks": "No bookmarks",
+	"Click to locate": "Click to locate: ${1}",
+	"Sent designator": "Sent designator: ${1}",
+	"PDF load failed": "PDF load failed: ${1}"
 }

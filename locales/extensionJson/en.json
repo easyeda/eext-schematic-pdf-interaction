@@ -1,4 +1,11 @@
 {
 	"Schematic PDF Interaction": "Schematic PDF Interaction",
-	"Open Schematic PDF...": "Open Schematic PDF..."
+	"Open Schematic PDF...": "Open Schematic PDF...",
+	"在PCB编辑器中预览原理图PDF，点击元件位号文本自动选中高亮并定位PCB封装，支持自动平移和缩放": "Preview schematic PDF in PCB editor, click component designator text to auto-select, highlight and locate PCB footprint, supports auto-pan and zoom",
+	"Tool": "Tool",
+	"PCB": "PCB",
+	"PDF": "PDF",
+	"Schematic": "Schematic",
+	"CrossProbe": "Cross Probe",
+	"Designator": "Designator"
 }
