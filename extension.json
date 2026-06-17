@@ -3,7 +3,7 @@
 	"uuid": "26d40432fa5441658d7b0d7589677219",
 	"displayName": "原理图PDF交互",
 	"description": "在PCB编辑器中预览原理图PDF，点击元件位号文本自动选中高亮并定位PCB封装，支持自动平移和缩放",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"publisher": "EasyEDA",
 	"engines": {
 		"eda": "^3.0.0"
